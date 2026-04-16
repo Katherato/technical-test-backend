@@ -1,0 +1,384 @@
+openapi: 3.0.3
+info:
+  title: Customers API
+  version: 1.0.0
+  description: API para gestión de clientes del backoffice B2B.
+
+servers:
+  - url: http://localhost:3001
+
+tags:
+  - name: Auth
+  - name: Customers
+  - name: Internal
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceTokenAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: SERVICE_TOKEN
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          example: admin@test.com
+        password:
+          type: string
+          example: "123456"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: ACME Corp
+        email:
+          type: string
+          format: email
+          example: ops@acme.com
+        phone:
+          type: string
+          example: "3001234567"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-16T03:09:00.000Z"
+
+    CreateCustomerRequest:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+      properties:
+        name:
+          type: string
+          example: Cliente Demo
+        email:
+          type: string
+          format: email
+          example: demo@empresa.com
+        phone:
+          type: string
+          example: "3001112233"
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Cliente Actualizado
+        email:
+          type: string
+          format: email
+          example: actualizado@empresa.com
+        phone:
+          type: string
+          example: "3009998888"
+
+    SuccessCustomerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Customer'
+
+    SuccessCustomerListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+
+    DeleteCustomerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Cliente eliminado correctamente
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error interno del servidor
+
+paths:
+  /health:
+    get:
+      tags:
+        - Customers
+      summary: Health check
+      responses:
+        '200':
+          description: Servicio activo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  service:
+                    type: string
+                    example: customers-api
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login simple para obtener JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customers:
+    post:
+      tags:
+        - Customers
+      summary: Crear cliente
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Cliente creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCustomerResponse'
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Customers
+      summary: Listar clientes
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          required: false
+          description: Buscar por nombre o email
+          example: acme
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+          required: false
+          description: Cursor de paginación basado en id
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+          description: Límite de resultados
+          example: 10
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCustomerListResponse'
+
+  /customers/{id}:
+    get:
+      tags:
+        - Customers
+      summary: Obtener cliente por id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCustomerResponse'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Customers
+      summary: Actualizar cliente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCustomerResponse'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Customers
+      summary: Eliminar cliente lógicamente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 2
+      responses:
+        '200':
+          description: Cliente eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCustomerResponse'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/customers/{id}:
+    get:
+      tags:
+        - Internal
+      summary: Obtener cliente por id para consumo interno
+      security:
+        - serviceTokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCustomerResponse'
+        '403':
+          description: Service token inválido o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

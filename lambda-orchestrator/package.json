@@ -1,0 +1,24 @@
+{
+  "name": "lambda-orchestrator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/handlers/orchestrator.js",
+  "scripts": {
+    "dev": "serverless offline",
+    "start": "serverless offline",
+    "build": "echo build-not-required",
+    "test": "echo no-tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "uuid": "^11.1.0",
+    "zod": "^4.1.4"
+  },
+  "devDependencies": {
+    "serverless": "^3.39.0",
+    "serverless-offline": "^12.0.4"
+  }
+}

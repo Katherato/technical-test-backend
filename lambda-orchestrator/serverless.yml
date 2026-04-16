@@ -1,0 +1,28 @@
+service: lambda-orchestrator
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+  environment:
+    CUSTOMERS_API_BASE: ${env:CUSTOMERS_API_BASE}
+    ORDERS_API_BASE: ${env:ORDERS_API_BASE}
+    SERVICE_TOKEN: ${env:SERVICE_TOKEN}
+
+functions:
+  orchestrator:
+    handler: src/handlers/orchestrator.createAndConfirmOrder
+    events:
+      - httpApi:
+          path: /orchestrator/create-and-confirm-order
+          method: post
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+    lambdaPort: 3003
