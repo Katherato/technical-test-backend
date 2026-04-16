@@ -79,6 +79,9 @@ technical-test-backend
 ├── db
 │   ├── schema.sql
 │   └── seed.sql
+├── postman
+│   ├── technical-test-backend.postman_collection.json
+│   └── technical-test-backend.postman_environment.json
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
@@ -387,6 +390,174 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 
 ---
 
+## Pruebas en Postman
+
+Se incluye una colección Postman para facilitar las pruebas manuales del flujo completo:
+
+- `postman/technical-test-backend.postman_collection.json`
+- `postman/technical-test-backend.postman_environment.json`
+
+### Variables del environment utilizadas
+
+- `customers_base_url = http://localhost:3001`
+- `orders_base_url = http://localhost:3002`
+- `lambda_base_url = http://localhost:3000`
+- `jwt_customers`
+- `jwt_orders`
+- `service_token = service-secret-token`
+- `customer_id`
+- `product_id`
+- `order_id`
+- `idempotency_key`
+
+### Flujo probado manualmente en Postman
+
+#### Customers API
+
+- Login Customers
+- Create Customer
+- List Customers
+- Internal Customer
+
+#### Orders API
+
+- Login Orders
+- List Products
+- Create Product
+- Create Order
+- Get Order By Id
+- Confirm Order
+- Cancel Order
+
+#### Lambda Orchestrator
+
+- Lambda Orchestrator
+
+### Resultado de las pruebas
+
+Se validó manualmente en Postman:
+
+- autenticación en Customers API
+- creación de cliente
+- consulta de clientes
+- acceso al endpoint interno protegido por `SERVICE_TOKEN`
+- autenticación en Orders API
+- consulta y creación de productos
+- creación de órdenes
+- confirmación de órdenes
+- cancelación de órdenes según reglas
+- invocación HTTP del Lambda Orchestrator con respuesta consolidada
+
+---
+
+## Ejemplos cURL
+
+### cURL - Login Customers API
+
+```bash
+curl -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"admin@test.com\",\"password\":\"123456\"}"
+```
+
+### cURL - Crear cliente
+
+```bash
+curl -X POST http://localhost:3001/customers \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"name\":\"Cliente Demo\",\"email\":\"demo@empresa.com\",\"phone\":\"3001112233\"}"
+```
+
+### cURL - Login Orders API
+
+```bash
+curl -X POST http://localhost:3002/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"admin@test.com\",\"password\":\"123456\"}"
+```
+
+### cURL - Crear producto
+
+```bash
+curl -X POST http://localhost:3002/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN_ORDERS" \
+  -d "{\"sku\":\"SKU-HEADSET\",\"name\":\"Headset\",\"price_cents\":89900,\"stock\":15}"
+```
+
+### cURL - Crear orden
+
+```bash
+curl -X POST http://localhost:3002/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN_ORDERS" \
+  -d "{\"customer_id\":1,\"items\":[{\"product_id\":2,\"qty\":2}]}"
+```
+
+### cURL - Confirmar orden con idempotencia
+
+```bash
+curl -X POST http://localhost:3002/orders/1/confirm \
+  -H "Authorization: Bearer TU_TOKEN_ORDERS" \
+  -H "X-Idempotency-Key: abc-123"
+```
+
+### cURL - Cancelar orden
+
+```bash
+curl -X POST http://localhost:3002/orders/2/cancel \
+  -H "Authorization: Bearer TU_TOKEN_ORDERS"
+```
+
+### cURL - Invocar Lambda Orchestrator local
+
+```bash
+curl -X POST http://localhost:3000/orchestrator/create-and-confirm-order \
+  -H "Content-Type: application/json" \
+  -d "{\"customer_id\":1,\"items\":[{\"product_id\":1,\"qty\":1}],\"idempotency_key\":\"lambda-001\",\"correlation_id\":\"req-001\"}"
+```
+
+---
+
+## Invocación del Lambda en AWS
+
+### Despliegue
+
+Desde `lambda-orchestrator`:
+
+```bash
+serverless deploy
+```
+
+### Variables de entorno requeridas
+
+El despliegue en AWS requiere configurar:
+
+- `CUSTOMERS_API_BASE`
+- `ORDERS_API_BASE`
+- `SERVICE_TOKEN`
+
+Estas variables deben apuntar a URLs públicas accesibles por el Lambda desplegado.
+
+### Invocación
+
+Una vez desplegado, se debe tomar la URL expuesta por API Gateway y hacer un `POST` al endpoint:
+
+```text
+https://TU_API_ID.execute-api.TU_REGION.amazonaws.com/orchestrator/create-and-confirm-order
+```
+
+### Ejemplo cURL en AWS
+
+```bash
+curl -X POST "https://TU_API_ID.execute-api.TU_REGION.amazonaws.com/orchestrator/create-and-confirm-order" \
+  -H "Content-Type: application/json" \
+  -d "{\"customer_id\":1,\"items\":[{\"product_id\":1,\"qty\":1}],\"idempotency_key\":\"aws-001\",\"correlation_id\":\"req-aws-001\"}"
+```
+
+---
+
 ## Reglas de negocio implementadas
 
 ### Customers
@@ -425,7 +596,7 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 
 ## Decisiones técnicas
 
-- Se utilizó **SQL parametrizado** con `mysql2/promise`.
+- Se utilizó SQL parametrizado con `mysql2/promise`.
 - Se evitó ORM para mantener control explícito sobre consultas y transacciones.
 - Se utilizó `SELECT ... FOR UPDATE` para proteger stock en la creación de órdenes.
 - La idempotencia se persistió en la tabla `idempotency_keys`.
@@ -451,6 +622,15 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 - Para PowerShell se recomienda usar `irm` en lugar de `curl`.
 - Para el entorno local del Lambda se utilizó `serverless-offline`.
 - La ejecución local del Lambda requirió ajustar runtime y puertos para evitar conflictos.
+
+---
+
+## Nota técnica sobre el runtime del Lambda
+
+La guía solicita runtime Node 22 para Lambda.  
+La configuración objetivo para despliegue en AWS puede ajustarse a Node 22 según el entorno final.
+
+Para la ejecución local se utilizó una configuración compatible con `serverless-offline`, debido a restricciones de compatibilidad del entorno local durante las pruebas.
 
 ---
 
