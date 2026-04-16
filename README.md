@@ -82,6 +82,9 @@ technical-test-backend
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md
+```
+
+---
 
 ## Requisitos previos
 
@@ -96,6 +99,8 @@ Para el desarrollo del Lambda local se utilizó:
 
 - **Serverless Framework**
 - **serverless-offline**
+
+---
 
 ## Variables de entorno
 
@@ -112,6 +117,7 @@ JWT_SECRET=supersecret
 SERVICE_TOKEN=service-secret-token
 AUTH_USER=admin@test.com
 AUTH_PASSWORD=123456
+```
 
 ### orders-api/.env.example
 
@@ -127,6 +133,7 @@ SERVICE_TOKEN=service-secret-token
 AUTH_USER=admin@test.com
 AUTH_PASSWORD=123456
 CUSTOMERS_API_BASE=http://customers-api:3001
+```
 
 ### lambda-orchestrator/.env.example
 
@@ -135,6 +142,9 @@ CUSTOMERS_API_BASE=http://localhost:3001
 ORDERS_API_BASE=http://localhost:3002
 SERVICE_TOKEN=service-secret-token
 JWT_TOKEN=
+```
+
+---
 
 ## Base de datos
 
@@ -157,6 +167,8 @@ El proyecto utiliza MySQL 8 y se inicializa con:
 - productos base
 - stock inicial
 
+---
+
 ## Cómo levantar el proyecto con Docker
 
 Desde la raíz del proyecto:
@@ -164,17 +176,22 @@ Desde la raíz del proyecto:
 ```bash
 docker compose build
 docker compose up -d
+```
 
 ### Verificar contenedores
 
 ```bash
 docker ps
+```
 
 ### Verificar health checks en PowerShell
 
 ```powershell
 irm http://localhost:3001/health
 irm http://localhost:3002/health
+```
+
+---
 
 ## Customers API
 
@@ -182,6 +199,7 @@ irm http://localhost:3002/health
 
 ```text
 http://localhost:3001
+```
 
 ### Endpoints principales
 
@@ -198,6 +216,7 @@ http://localhost:3001
 ```powershell
 $response = irm http://localhost:3001/auth/login -Method Post -ContentType "application/json" -Body '{"email":"admin@test.com","password":"123456"}'
 $token = $response.token
+```
 
 ### Crear cliente
 
@@ -207,18 +226,23 @@ irm http://localhost:3001/customers `
   -ContentType "application/json" `
   -Headers @{ Authorization = "Bearer $token" } `
   -Body '{"name":"Cliente Demo","email":"demo@empresa.com","phone":"3001112233"}'
+```
 
 ### Listar clientes
 
 ```powershell
 irm http://localhost:3001/customers `
   -Headers @{ Authorization = "Bearer $token" }
+```
 
 ### Consultar cliente interno
 
 ```powershell
 irm http://localhost:3001/internal/customers/1 `
   -Headers @{ Authorization = "Bearer service-secret-token" }
+```
+
+---
 
 ## Orders API
 
@@ -226,6 +250,7 @@ irm http://localhost:3001/internal/customers/1 `
 
 ```text
 http://localhost:3002
+```
 
 ### Endpoints principales
 
@@ -250,12 +275,14 @@ http://localhost:3002
 ```powershell
 $responseOrders = irm http://localhost:3002/auth/login -Method Post -ContentType "application/json" -Body '{"email":"admin@test.com","password":"123456"}'
 $tokenOrders = $responseOrders.token
+```
 
 ### Listar productos
 
 ```powershell
 irm http://localhost:3002/products `
   -Headers @{ Authorization = "Bearer $tokenOrders" }
+```
 
 ### Crear producto
 
@@ -265,6 +292,7 @@ irm http://localhost:3002/products `
   -ContentType "application/json" `
   -Headers @{ Authorization = "Bearer $tokenOrders" } `
   -Body '{"sku":"SKU-HEADSET","name":"Headset","price_cents":89900,"stock":15}'
+```
 
 ### Crear orden
 
@@ -274,6 +302,7 @@ irm http://localhost:3002/orders `
   -ContentType "application/json" `
   -Headers @{ Authorization = "Bearer $tokenOrders" } `
   -Body '{"customer_id":1,"items":[{"product_id":2,"qty":2}]}'
+```
 
 ### Confirmar orden con idempotencia
 
@@ -281,6 +310,7 @@ irm http://localhost:3002/orders `
 irm http://localhost:3002/orders/1/confirm `
   -Method Post `
   -Headers @{ Authorization = "Bearer $tokenOrders"; "X-Idempotency-Key" = "abc-123" }
+```
 
 ### Cancelar orden
 
@@ -288,6 +318,9 @@ irm http://localhost:3002/orders/1/confirm `
 irm http://localhost:3002/orders/2/cancel `
   -Method Post `
   -Headers @{ Authorization = "Bearer $tokenOrders" }
+```
+
+---
 
 ## Lambda Orchestrator
 
@@ -295,11 +328,13 @@ irm http://localhost:3002/orders/2/cancel `
 
 ```text
 http://localhost:3000
+```
 
 ### Endpoint
 
 ```text
 POST /orchestrator/create-and-confirm-order
+```
 
 ### Levantar localmente
 
@@ -308,6 +343,7 @@ Desde `lambda-orchestrator`:
 ```bash
 npm install
 npm run dev
+```
 
 ### Ejemplo de request
 
@@ -316,6 +352,7 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
   -Method Post `
   -ContentType "application/json" `
   -Body '{"customer_id":1,"items":[{"product_id":1,"qty":1}],"idempotency_key":"lambda-001","correlation_id":"req-001"}'
+```
 
 ### Ejemplo de response esperada
 
@@ -346,6 +383,9 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
     }
   }
 }
+```
+
+---
 
 ## Reglas de negocio implementadas
 
@@ -381,6 +421,8 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 - confirma orden
 - retorna JSON consolidado
 
+---
+
 ## Decisiones técnicas
 
 - Se utilizó **SQL parametrizado** con `mysql2/promise`.
@@ -389,6 +431,8 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 - La idempotencia se persistió en la tabla `idempotency_keys`.
 - La paginación simple se implementó con `cursor` basado en `id`.
 - La autenticación es mínima y simple, suficiente para la prueba técnica.
+
+---
 
 ## Mejoras futuras
 
@@ -400,11 +444,15 @@ irm http://localhost:3000/orchestrator/create-and-confirm-order `
 - mayor cobertura OpenAPI
 - despliegue del Lambda en AWS
 
+---
+
 ## Notas
 
 - Para PowerShell se recomienda usar `irm` en lugar de `curl`.
 - Para el entorno local del Lambda se utilizó `serverless-offline`.
 - La ejecución local del Lambda requirió ajustar runtime y puertos para evitar conflictos.
+
+---
 
 ## Estado final
 
